@@ -1,1 +1,10 @@
-11
+Устанавливаем сервер:
+docker pull postgres
+docker run --name postgres_test -p 5432:5433 -e POSTGRES_PASSWORD=password -d postgres
+
+
+Устанавливаем клиент:
+docker run --rm -p 5050:5050 thajeztah/pgadmin4
+Starting pgAdmin 4. Please navigate to http://0.0.0.0:5050 in your browser.
+
+Заходим http://localhost:5050/browser/
