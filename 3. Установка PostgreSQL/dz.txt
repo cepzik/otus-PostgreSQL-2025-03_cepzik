@@ -1,10 +1,45 @@
 ”станавливаем сервер:
 docker pull postgres
-docker run --name postgres_test -p 5432:5433 -e POSTGRES_PASSWORD=password -d postgres
-
+docker run --name postgres_test -p 5433:5433 -e POSTGRES_PASSWORD=password -d postgres
+в сервере /var/lib/postgresql/data/postgresql.conf мен€ем port = 5433, перезапускаем
 
 ”станавливаем клиент:
-docker run --rm -p 5050:5050 thajeztah/pgadmin4
-Starting pgAdmin 4. Please navigate to http://0.0.0.0:5050 in your browser.
+docker run --name postgres_pgadmin4 -e PGADMIN_DEFAULT_EMAIL=admin@admin.ru -e PGADMIN_DEFAULT_PASSWORD=password -p 82:80 -d dpage/pgadmin4
 
-«аходим http://localhost:5050/browser/
+«аходим http://localhost:82/browser/
+
+
+добавл€ем сервер:
+	10.6.200.225
+	5433
+	логин/пароль из 3 строки (указанные при установке контейнера с сервером)
+успешно.
+вкладка SQL возвращает:
+-- Database: postgres
+
+-- DROP DATABASE IF EXISTS postgres;
+
+CREATE DATABASE postgres
+    WITH
+    OWNER = postgres
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+COMMENT ON DATABASE postgres
+    IS 'default administrative connection database';
+
+
+аналогичные действи€ с локально установленным PGAdmin
+
+
+CREATE TABLE IF NOT EXISTS kvadrant (name TEXT, lon REAL, lat REAL)
+select * from kvadrant;
+insert into  kvadrant (name , lon , lat) values ('ј1', 34, 44), ('A2', 35, 45);
+
+"ј1"	34	44
+"A2"	35	45
