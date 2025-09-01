@@ -1,0 +1,67 @@
+sudo apt install -y postgresql-common
+sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+sudo apt install postgresql-17
+
+sudo -u postgres pg_lsclusters
+
+Ver Cluster Port Status Owner    Data directory              Log file
+17  main    5432 online postgres /var/lib/postgresql/17/main /var/log/postgresql/postgresql-17-main.log
+
+sudo su postgres
+psql
+\password
+
+postgres=#  create table test(c1 text);
+CREATE TABLE
+postgres=# insert into test values('1');
+INSERT 0 1
+postgres=#
+
+
+root@server:/home/user# sudo -u postgres pg_lsclusters
+
+Ver Cluster Port Status Owner    Data directory              Log file
+17  main    5432 down   postgres /var/lib/postgresql/17/main /var/log/postgresql/postgresql-17-main.log
+
+root@server:/home/user# df -h
+Filesystem                         Size  Used Avail Use% Mounted on
+tmpfs                              387M  1,6M  386M   1% /run
+/dev/mapper/ubuntu--vg-ubuntu--lv  9,8G  2,8G  6,5G  30% /
+tmpfs                              1,9G  1,1M  1,9G   1% /dev/shm
+tmpfs                              5,0M     0  5,0M   0% /run/lock
+/dev/sdb1                          9,8G   24K  9,3G   1% /mnt/data
+/dev/sda2                          1,8G  100M  1,6G   7% /boot
+tmpfs                              387M   12K  387M   1% /run/user/1000
+root@server:/home/user#
+
+запуск
+root@server:/home/user# sudo -u postgres pg_ctlcluster 17 main start
+Error: /var/lib/postgresql/17/main is not accessible or does not exist
+ѕо указанному пути нет данных
+
+/etc/postgresql/17/main/postgresql.conf
+
+data_directory = '/mnt/data/17/main'
+
+root@server:/home/user# root@server:/home/user# systemctl stop postgresql
+root@server:/home/user# systemctl start postgresql
+root@server:/home/user# sudo -u postgres pg_ctlcluster 17 main start
+Warning: the cluster will not be running as a systemd service. Consider using systemctl:
+  sudo systemctl start postgresql@17-main
+Cluster is already running.
+root@server:/home/user# sudo systemctl start postgresql@17-main
+root@server:/home/user#
+
+
+root@server:/home/user# sudo su postgres
+postgres@server:/home/user$ psql
+psql (17.6 (Ubuntu 17.6-1.pgdg24.04+1))
+¬ведите "help", чтобы получить справку.
+
+postgres=# select * from test;
+ c1
+----
+ 1
+(1 строка)
+
+postgres=#
