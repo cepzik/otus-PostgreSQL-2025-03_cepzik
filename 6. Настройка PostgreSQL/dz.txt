@@ -1,1 +1,83 @@
+create database test;
+alter database test set work_mem='8 MB';
 
+postgres@server:/home/user$ pgbench -i test
+dropping old tables...
+ЗАМЕЧАНИЕ:  таблица "pgbench_accounts" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_branches" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_history" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_tellers" не существует, пропускается
+creating tables...
+generating data (client-side)...
+vacuuming...
+creating primary keys...
+done in 0.16 s (drop tables 0.00 s, create tables 0.00 s, client-side generate 0.10 s, vacuum 0.03 s, primary keys 0.02 s).
+
+
+***1 тест стандартных настроек
+
+postgres@server:/home/user$ pgbench -c 50 -j 2 -P 10 -T 60 test
+pgbench (17.6 (Ubuntu 17.6-1.pgdg24.04+1))
+starting vacuum...end.
+progress: 10.0 s, 1600.0 tps, lat 30.888 ms stddev 38.048, 0 failed
+progress: 20.0 s, 1595.4 tps, lat 31.263 ms stddev 36.919, 0 failed
+progress: 30.0 s, 1560.7 tps, lat 32.014 ms stddev 40.497, 0 failed
+progress: 40.0 s, 1564.3 tps, lat 32.080 ms stddev 40.654, 0 failed
+progress: 50.0 s, 1573.0 tps, lat 31.694 ms stddev 41.732, 0 failed
+progress: 60.0 s, 1612.8 tps, lat 31.047 ms stddev 38.795, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 50
+number of threads: 2
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 95112
+number of failed transactions: 0 (0.000%)
+latency average = 31.521 ms
+latency stddev = 39.495 ms
+initial connection time = 79.394 ms
+tps = 1585.053990 (without initial connection time)
+postgres@server:/home/user$
+
+
+max_connections = 250 (250*16mb=4000mb озу)
+wal_level = minimal (не запустилось, пришлось вернуть в replica)
+fsync = off принудительная запись на диск
+synchronous_commit = off синхронная запись данных
+wal_buffers = 16MB размер буферов wal
+checkpoint_timeout = 60min интервал между контрольными точками
+checkpoint_completion_target = 1 время выполнения контрольной точки
+shared_buffers = 3GB объем памяти буеров, но и сеситему чуть отставить
+work_mem = 16MB память каждого соелинения
+effective_cache_size = 4GB данные в кеше
+maintenance_work_mem = 2GB для обслуживания
+autovacuum = off
+random_page_cost = 1.1 стоимость случайного доступа
+effective_io_concurrency = 200 число паралледлбных операций
+
+
+postgres@server:/home/user$ pgbench -c 50 -j 2 -P 10 -T 60 test
+pgbench (17.6 (Ubuntu 17.6-1.pgdg24.04+1))
+starting vacuum...end.
+
+progress: 10.0 s, 1952.2 tps, lat 25.304 ms stddev 30.975, 0 failed
+progress: 20.0 s, 2012.2 tps, lat 24.871 ms stddev 30.714, 0 failed
+progress: 30.0 s, 1996.0 tps, lat 25.021 ms stddev 30.313, 0 failed
+progress: 40.0 s, 1968.1 tps, lat 25.431 ms stddev 32.482, 0 failed
+progress: 50.0 s, 1984.2 tps, lat 25.185 ms stddev 30.782, 0 failed
+progress: 60.0 s, 2037.9 tps, lat 24.540 ms stddev 31.386, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 50
+number of threads: 2
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 119555
+number of failed transactions: 0 (0.000%)
+latency average = 25.069 ms
+latency stddev = 31.127 ms
+initial connection time = 82.843 ms
+tps = 1993.179892 (without initial connection time)
+postgres@server:/home/user$
