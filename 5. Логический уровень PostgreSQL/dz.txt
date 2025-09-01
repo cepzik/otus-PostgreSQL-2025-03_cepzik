@@ -1,1 +1,129 @@
+2.	root@server:/home/user# sudo su postgres
+
+3.	postgres=# CREATE DATABASE testdb;
+CREATE DATABASE
+postgres=#
+
+4.	postgres=# \c testdb
+Вы подключены к базе данных "testdb" как пользователь "postgres".
+testdb=#
+
+5.	testdb=# create schema testnm;
+CREATE SCHEMA
+testdb=#
+
+6. 	testdb=# create table testnm.t1(c1 integer);
+CREATE TABLE
+testdb=#
+
+7.	testdb=# insert into testnm.t1 values(1);
+INSERT 0 1
+testdb=#
+
+8. 	testdb=# create role readonly;
+CREATE ROLE
+testdb=#
+
+9.	testdb=# grant connect on database testdb to readonly;
+GRANT
+testdb=#
+
+10.	testdb=# grant usage on schema testnm to readonly;
+GRANT
+testdb=#
+
+11.	testdb=# grant select on all tables in schema testnm to readonly;
+GRANT
+testdb=#
+
+12.	testdb=# create user testread with password 'test123';
+CREATE ROLE
+testdb=#
+
+13.	testdb=# grant readonly to testread;
+GRANT ROLE
+testdb=#
+
+14.	поменяли в pg_hba peer На md5	
+postgres=# \c testdb testread;
+Пароль пользователя testread:
+Вы подключены к базе данных "testdb" как пользователь "testread".
+testdb=>
+
+15. testdb=> select * from t1;
+ОШИБКА:  отношение "t1" не существует
+
+
+СТРОКА 1: select * from t1;
+                        ^
+Не указана схема
+testdb=> select * from testnm.t1;
+ c1
+----
+  1
+(1 строка)
+
+testdb=>
+
+16.	почти. вовремя подумал про подвох.
+
+22.	testdb=# \c testdb postgres
+Вы подключены к базе данных "testdb" как пользователь "postgres".
+testdb=#
+
+23.	testdb=# drop table testnm.t1;
+DROP TABLE
+
+24.	testdb=# create table testnm.t1(c1 integer);
+CREATE TABLE
+testdb=#
+
+25.	testdb=# insert into testnm.t1 values(1);
+INSERT 0 1
+testdb=#
+
+26.	testdb=# \c testdb testread;
+Пароль пользователя testread:
+Вы подключены к базе данных "testdb" как пользователь "testread".
+testdb=>
+
+27.	testdb=> select * from testnm.t1;
+ОШИБКА:  нет доступа к таблице t1
+testdb=>
+
+28.	доступ давался для таблиц, существующих на тот момент.  таблица t1 пересоздавалась. досьупа нет.
+
+30.	testdb=# alter default privileges in schema testnm grant select on tables to readonly;
+ALTER DEFAULT PRIVILEGES
+testdb=#
+
+31.	testdb=> select * from testnm.t1;
+ОШИБКА:  нет доступа к таблице t1
+testdb=>
+
+33.	ввели команду для новых,а старые править?
+ \c testdb postgres
+grant select on all tables in schema testnm to readonly;
+\c testdb testread;
+testdb=> select * from testnm.t1;
+ c1
+----
+  1
+(1 строка)
+
+testdb=>
+
+37.	testdb=>  create table t2(c1 integer); insert into t2 values (2);
+ОШИБКА:  нет доступа к схеме public
+СТРОКА 1: create table t2(c1 integer);
+                       ^
+ОШИБКА:  отношение "t2" не существует
+СТРОКА 1: insert into t2 values (2);
+                      ^
+testdb=>
+
+
+38.	судя по тексту, должен был быть успех,а потом с этим бороться
+то же самое с п40 (должна была выйти эта ошибка)
+
 
