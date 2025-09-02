@@ -178,3 +178,36 @@ postgres=# SELECT pg_size_pretty(pg_total_relation_size('student'));
 
 postgres=#
 мертвые записи "ушли", но размер не изменился-надо запускать фулл
+
+
+
+
+
+*****************
+
+
+
+select * from student
+
+
+do $$ 
+begin
+for i in 1..10 loop
+update student set fio = 'name';
+raise notice 'step %', i;
+end loop;
+raise notice 'complete';
+end $$
+
+
+step 1
+step 2
+step 3
+step 4
+step 5
+step 6
+step 7
+step 8
+step 9
+step 10
+complete
