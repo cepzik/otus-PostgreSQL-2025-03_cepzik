@@ -1,1 +1,180 @@
+root@server:/home/user# sudo su postgres
+postgres@server:/home/user$ pgbench -i postgres
+dropping old tables...
+ЗАМЕЧАНИЕ:  таблица "pgbench_accounts" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_branches" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_history" не существует, пропускается
+ЗАМЕЧАНИЕ:  таблица "pgbench_tellers" не существует, пропускается
+creating tables...
+generating data (client-side)...
+100000 of 100000 tuples (100%) done (elapsed 0.06 s, remaining 0.00 s)
+vacuuming...
+creating primary keys...
+done in 0.15 s (drop tables 0.00 s, create tables 0.00 s, client-side generate 0.07 s, vacuum 0.03 s, primary keys 0.05 s).
+postgres@server:/home/user$
 
+postgres@server:/home/user$ pgbench -c8 -P 6 -T 60 -U postgres postgres
+pgbench (15.14 (Ubuntu 15.14-1.pgdg24.04+1))
+starting vacuum...end.
+progress: 6.0 s, 2108.5 tps, lat 3.779 ms stddev 2.221, 0 failed
+progress: 12.0 s, 2133.2 tps, lat 3.748 ms stddev 2.246, 0 failed
+progress: 18.0 s, 2209.5 tps, lat 3.618 ms stddev 2.202, 0 failed
+progress: 24.0 s, 2303.3 tps, lat 3.470 ms stddev 2.030, 0 failed
+progress: 30.0 s, 2210.2 tps, lat 3.617 ms stddev 2.480, 0 failed
+progress: 36.0 s, 2347.0 tps, lat 3.406 ms stddev 1.978, 0 failed
+progress: 42.0 s, 2317.7 tps, lat 3.448 ms stddev 2.010, 0 failed
+progress: 48.0 s, 2337.8 tps, lat 3.419 ms stddev 1.993, 0 failed
+progress: 54.0 s, 2273.8 tps, lat 3.515 ms stddev 1.988, 0 failed
+progress: 60.0 s, 2288.7 tps, lat 3.493 ms stddev 2.011, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 8
+number of threads: 1
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 135185
+number of failed transactions: 0 (0.000%)
+latency average = 3.547 ms
+latency stddev = 2.122 ms
+initial connection time = 15.278 ms
+tps = 2253.254618 (without initial connection time)
+postgres@server:/home/user$
+
+замена параметров
+
+
+max_connections = 40
+shared_buffers = 1GB
+effective_cache_size = 3GB
+maintenance_work_mem = 512MB
+checkpoint_completion_target = 0.9
+wal_buffers = 16MB
+default_statistics_target = 500
+random_page_cost = 4
+effective_io_concurrency = 2
+work_mem = 6553kB
+min_wal_size = 4GB
+max_wal_size = 16GB
+
+
+перезапуск сервиса.
+
+postgres@server:/home/user$ pgbench -c8 -P 6 -T 60 -U postgres postgres
+pgbench (15.14 (Ubuntu 15.14-1.pgdg24.04+1))
+starting vacuum...end.
+progress: 6.0 s, 2226.8 tps, lat 3.578 ms stddev 2.045, 0 failed
+progress: 12.0 s, 2293.4 tps, lat 3.485 ms stddev 2.032, 0 failed
+progress: 18.0 s, 2253.2 tps, lat 3.547 ms stddev 2.073, 0 failed
+progress: 24.0 s, 2222.0 tps, lat 3.598 ms stddev 2.166, 0 failed
+progress: 30.0 s, 2237.4 tps, lat 3.572 ms stddev 2.100, 0 failed
+progress: 36.0 s, 2216.8 tps, lat 3.606 ms stddev 2.107, 0 failed
+progress: 42.0 s, 2223.4 tps, lat 3.596 ms stddev 2.023, 0 failed
+progress: 48.0 s, 2339.7 tps, lat 3.416 ms stddev 2.009, 0 failed
+progress: 54.0 s, 2270.0 tps, lat 3.522 ms stddev 2.029, 0 failed
+progress: 60.0 s, 2310.2 tps, lat 3.460 ms stddev 1.981, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 8
+number of threads: 1
+maximum number of tries: 1
+duration: 60 s
+number of transactions actually processed: 135565
+number of failed transactions: 0 (0.000%)
+latency average = 3.537 ms
+latency stddev = 2.058 ms
+initial connection time = 17.389 ms
+tps = 2259.663422 (without initial connection time)
+postgres@server:/home/user$
+
+изменились параметры,поэтому изменились и показатели.
+
+postgres=# CREATE TABLE student(
+postgres(#   id serial,
+postgres(#   fio char(100)
+postgres(# ) WITH (autovacuum_enabled = off);
+CREATE TABLE
+postgres=#
+postgres=# INSERT INTO student(fio) SELECT 'noname' FROM generate_series(1,1000000);
+INSERT 0 1000000
+postgres=#
+
+postgres=# SELECT pg_size_pretty(pg_total_relation_size('student'));
+ pg_size_pretty
+----------------
+ 135 MB
+(1 row)
+
+postgres=#
+
+postgres=# update student set fio = 'name';
+UPDATE 1000000
+postgres=# update student set fio = 'name';
+UPDATE 1000000
+postgres=# update student set fio = 'name';
+UPDATE 1000000
+postgres=# update student set fio = 'name';
+UPDATE 1000000
+postgres=# update student set fio = 'name';
+UPDATE 1000000
+postgres=#
+
+
+postgres=# SELECT relname, n_live_tup, n_dead_tup, trunc(100*n_dead_tup/(n_live_tup+1))::float "ratio%", last_autovacuum
+FROM pg_stat_user_TABLEs WHERE relname = 'student';
+ relname | n_live_tup | n_dead_tup | ratio% | last_autovacuum
+---------+------------+------------+--------+-----------------
+ student |    1000000 |    4999944 |    499 |
+(1 row)
+
+postgres=#
+
+
+postgres=# SELECT schemaname, relname, last_autovacuum
+postgres-# FROM pg_stat_user_tables
+postgres-# WHERE schemaname = 'a' AND relname = 't_d';
+ schemaname | relname | last_autovacuum
+------------+---------+-----------------
+(0 rows)
+
+postgres=#
+
+
+спустя более часа автовакуум не прошел
+postgres=# SELECT pg_size_pretty(pg_total_relation_size('student'));
+ pg_size_pretty
+----------------
+ 943 MB
+(1 row)
+
+postgres=#
+
+postgres=# SELECT relname, n_live_tup, n_dead_tup, trunc(100*n_dead_tup/(n_live_tup+1))::float "ratio%", last_autovacuum
+FROM pg_stat_user_TABLEs WHERE relname = 'student';
+ relname | n_live_tup | n_dead_tup | ratio% | last_autovacuum
+---------+------------+------------+--------+-----------------
+ student |    1000000 |    5999876 |    599 |
+(1 row)
+
+
+ALTER TABLE student SET (autovacuum_enabled = on);
+
+postgres=# SELECT relname, n_live_tup, n_dead_tup, trunc(100*n_dead_tup/(n_live_tup+1))::float "ratio%", last_autovacuum
+FROM pg_stat_user_TABLEs WHERE relname = 'student';
+ relname | n_live_tup | n_dead_tup | ratio% |        last_autovacuum
+---------+------------+------------+--------+-------------------------------
+ student |    1000000 |          0 |      0 | 2025-09-02 08:25:41.661653+00
+(1 row)
+
+postgres=#
+
+
+postgres=# SELECT pg_size_pretty(pg_total_relation_size('student'));
+ pg_size_pretty
+----------------
+ 943 MB
+(1 row)
+
+postgres=#
+мертвые записи "ушли", но размер не изменился-надо запускать фулл
