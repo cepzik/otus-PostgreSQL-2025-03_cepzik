@@ -1,1 +1,224 @@
+log_lock_waits = on;
+deadlock_timeout = 200ms
+
+postgres=# SHOW deadlock_timeout;
+ deadlock_timeout
+------------------
+ 200ms
+(1 row)
+
+1s:
+begin;
+update student set fio = 'name' where id = 999595;
+SELECT pg_sleep(1);
+2s:
+
+begin;
+update student set fio = 'name' where id = 999595;
+
+
+2025-09-02 16:52:37.248 UTC [1489] postgres@postgres СООБЩЕНИЕ:  процесс 1489 продолжает ожидать в режиме ShareLock блокировку "транзакция 2076782" в течение 200.245 мс
+2025-09-02 16:52:37.248 UTC [1489] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1391. Wait queue: 1489.
+
+
+2s:
+rollback;
+
+2025-09-02 16:55:10.014 UTC [1489] postgres@postgres СООБЩЕНИЕ:  процесс 1489 получил в режиме ShareLock блокировку "транзакция 2076782" через 152966.378 мс
+2025-09-02 16:55:10.014 UTC [1489] postgres@postgres КОНТЕКСТ:  при изменении кортежа (172414,45) в отношении "student"
+2025-09-02 16:55:10.014 UTC [1489] postgres@postgres ОПЕРАТОР:  update student set fio = 'name' where id = 999595;
+
+
+
+
+***********2*****************
+1 sess
+postgres=# begin;
+BEGIN
+postgres=*# SELECT pg_backend_pid();
+ pg_backend_pid
+----------------
+           1489
+(1 row)
+
+postgres=*# update student set fio = 'name' where id = 999595;
+UPDATE 1
+
+
+
+2 sess
+postgres=# begin;
+BEGIN
+postgres=*# SELECT pg_backend_pid();
+ pg_backend_pid
+----------------
+           1678
+(1 row)
+
+postgres=*# update student set fio = 'name' where id = 999595;
+
+
+
+3 sess
+postgres=# begin;
+BEGIN
+postgres=*# SELECT pg_backend_pid();
+ pg_backend_pid
+----------------
+           1760
+(1 row)
+
+postgres=*# update student set fio = 'name' where id = 999595;
+
+
+
+2025-09-02 17:28:04.090 UTC [1760] postgres@postgres СООБЩЕНИЕ:  процесс 1760 продолжает ожидать в режиме ShareLock блокировку "транзакция 2076785" в течение 200.516 мс
+2025-09-02 17:28:04.090 UTC [1760] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1678. Wait queue: 1760.
+2025-09-02 17:28:04.090 UTC [1760] postgres@postgres КОНТЕКСТ:  при изменении кортежа (172414,45) в отношении "student"
+2025-09-02 17:28:04.090 UTC [1760] postgres@postgres ОПЕРАТОР:  update student set fio = 'name' where id = 999595;
+2025-09-02 17:28:09.895 UTC [961] СООБЩЕНИЕ:  начата контрольная точка: time
+2025-09-02 17:28:10.202 UTC [961] СООБЩЕНИЕ:  контрольная точка завершена: записано буферов: 4 (0.0%); добавлено файлов WAL 0, удалено: 0, переработано: 0; запись=0.305 сек., синхр.=0.001 сек., всего=0.308 сек.; синхронизировано_файлов=4, самая_долгая_синхр.=0.001 сек., средняя=0.001 сек.; расстояние=8 kB, ожидалось=8 kB
+2025-09-02 17:28:12.974 UTC [1760] postgres@postgres СООБЩЕНИЕ:  процесс 1760 получил в режиме ShareLock блокировку "транзакция 2076785" через 9084.257 мс
+2025-09-02 17:28:12.974 UTC [1760] postgres@postgres КОНТЕКСТ:  при изменении кортежа (172414,45) в отношении "student"
+2025-09-02 17:28:12.974 UTC [1760] postgres@postgres ОПЕРАТОР:  update student set fio = 'name' where id = 999595;
+2025-09-02 17:28:39.214 UTC [961] СООБЩЕНИЕ:  начата контрольная точка: time
+2025-09-02 17:28:39.522 UTC [961] СООБЩЕНИЕ:  контрольная точка завершена: записано буферов: 4 (0.0%); добавлено файлов WAL 0, удалено: 0, переработано: 0; запись=0.305 сек., синхр.=0.001 сек., всего=0.308 сек.; синхронизировано_файлов=4, самая_долгая_синхр.=0.001 сек., средняя=0.001 сек.; расстояние=8 kB, ожидалось=8 kB
+2025-09-02 17:29:04.773 UTC [1678] postgres@postgres СООБЩЕНИЕ:  процесс 1678 продолжает ожидать в режиме ShareLock блокировку "транзакция 2076787" в течение 200.113 мс
+2025-09-02 17:29:04.773 UTC [1678] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1489. Wait queue: 1678.
+2025-09-02 17:29:04.773 UTC [1678] postgres@postgres КОНТЕКСТ:  при изменении кортежа (172414,45) в отношении "student"
+2025-09-02 17:29:04.773 UTC [1678] postgres@postgres ОПЕРАТОР:  update student set fio = 'name' where id = 999595;
+2025-09-02 17:29:09.324 UTC [1760] postgres@postgres СООБЩЕНИЕ:  процесс 1760 продолжает ожидать в режиме ExclusiveLock блокировку "кортеж (172414,45) отношения 16429 базы данных 5" в течение 200.220 мс
+2025-09-02 17:29:09.324 UTC [1760] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1678. Wait queue: 1760.
+2025-09-02 17:29:09.324 UTC [1760] postgres@postgres ОПЕРАТОР:  update student set fio = 'name' where id = 999595;
+
+
+postgres=# SELECT locktype, relation::REGCLASS, virtualxid AS virtxid, transactionid AS xid, mode, granted FROM pg_locks;
+   locktype    | relation | virtxid |   xid   |       mode       | granted
+---------------+----------+---------+---------+------------------+---------
+ relation      | student  |         |         | RowExclusiveLock | t
+ virtualxid    |          | 7/5     |         | ExclusiveLock    | t
+ relation      | student  |         |         | RowExclusiveLock | t
+ virtualxid    |          | 6/11    |         | ExclusiveLock    | t
+ relation      | pg_locks |         |         | AccessShareLock  | t
+ virtualxid    |          | 5/157   |         | ExclusiveLock    | t
+ relation      | student  |         |         | RowExclusiveLock | t
+ virtualxid    |          | 4/20    |         | ExclusiveLock    | t
+ tuple         | student  |         |         | ExclusiveLock    | t
+ transactionid |          |         | 2076788 | ExclusiveLock    | t
+ transactionid |          |         | 2076789 | ExclusiveLock    | t
+ tuple         | student  |         |         | ExclusiveLock    | f
+ transactionid |          |         | 2076787 | ShareLock        | f
+ transactionid |          |         | 2076787 | ExclusiveLock    | t
+
+
+
+
+операция update использует блокировки RowExclusiveLock
+каждая транзакция удерживает свой номер посредствам virtualxid ExclusiveLock. все блокировки предоставлены.
+
+postgres=# SELECT pid, wait_event_type, wait_event, pg_blocking_pids(pid)
+postgres-# FROM pg_stat_activity
+postgres-# WHERE backend_type = 'client backend' ORDER BY pid;
+ pid  | wait_event_type |  wait_event   | pg_blocking_pids
+------+-----------------+---------------+------------------
+ 1489 | Client          | ClientRead    | {}
+ 1627 | Client          | ClientRead    | {}
+ 1678 | Lock            | transactionid | {1489}
+ 1760 | Lock            | tuple         | {1678}
+ 1885 |                 |               | {}
+(5 rows)
+
+вторая блокировка ждет завершения первой, а третья ждет и изменения версии строки
+
+
+
+***********3************
+
+1ses
+postgres=# CREATE TABLE accounts(
+postgres(#   acc_no integer PRIMARY KEY,
+postgres(#   amount numeric
+postgres(# );
+ccounts VALUES (1,1000.00), (2,2000.00), (3,3CREATE TABLE
+postgres=# INSERT INTO accounts VALUES (1,1000.00), (2,2000.00), (3,3000.00);
+INSERT 0 3
+postgres=# begin;
+BEGIN
+postgres=*# SELECT pg_backend_pid();
+ pg_backend_pid
+----------------
+           1489
+(1 row)
+
+postgres=*# UPDATE accounts SET amount = amount + 100 WHERE acc_no = 1;
+UPDATE 1
+postgres=*# rollback;
+ROLLBACK
+postgres=# begin;
+BEGIN
+postgres=*# UPDATE accounts SET amount = amount - 100.00 WHERE acc_no = 1;
+UPDATE 1
+
+
+2ses
+postgres=# begin;
+BEGIN
+postgres=*# UPDATE accounts SET amount = amount - 10.00 WHERE acc_no = 2;
+UPDATE 1
+
+1 ses
+postgres=*# UPDATE accounts SET amount = amount + 100.00 WHERE acc_no = 2;
+UPDATE 1
+
+2 ses
+
+postgres=*# UPDATE accounts SET amount = amount + 10.00 WHERE acc_no = 1;
+ОШИБКА:  обнаружена взаимоблокировка
+ПОДРОБНОСТИ:  Процесс 1760 ожидает в режиме ShareLock блокировку "транзакция 2076799"; заблокирован процессом 1489.
+Процесс 1489 ожидает в режиме ShareLock блокировку "транзакция 2076800"; заблокирован процессом 1760.
+ПОДСКАЗКА:  Подробности запроса смотрите в протоколе сервера.
+КОНТЕКСТ:  при изменении кортежа (0,1) в отношении "accounts"
+
+
+
+
+postgres@server:/home/user$ tail -n 20 /var/log/postgresql/postgresql-15-main.log
+2025-09-02 18:33:57.185 UTC [1489] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1760. Wait queue: 1489.
+2025-09-02 18:33:57.185 UTC [1489] postgres@postgres КОНТЕКСТ:  при изменении кортежа (0,2) в отношении "accounts"
+2025-09-02 18:33:57.185 UTC [1489] postgres@postgres ОПЕРАТОР:  UPDATE accounts SET amount = amount + 100.00 WHERE acc_no = 2;
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres СООБЩЕНИЕ:  процесс 1760 обнаружил взаимоблокировку, ожидая в режиме ShareLock блокировку "транзакция 2076799" в течение 200.851 мс
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ПОДРОБНОСТИ:  Process holding the lock: 1489. Wait queue: .
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres КОНТЕКСТ:  при изменении кортежа (0,1) в отношении "accounts"
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ОПЕРАТОР:  UPDATE accounts SET amount = amount + 10.00 WHERE acc_no = 1;
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ОШИБКА:  обнаружена взаимоблокировка
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ПОДРОБНОСТИ:  Процесс 1760 ожидает в режиме ShareLock блокировку "транзакция 2076799"; заблокирован процессом 1489.
+        Процесс 1489 ожидает в режиме ShareLock блокировку "транзакция 2076800"; заблокирован процессом 1760.
+        Процесс 1760: UPDATE accounts SET amount = amount + 10.00 WHERE acc_no = 1;
+        Процесс 1489: UPDATE accounts SET amount = amount + 100.00 WHERE acc_no = 2;
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ПОДСКАЗКА:  Подробности запроса смотрите в протоколе сервера.
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres КОНТЕКСТ:  при изменении кортежа (0,1) в отношении "accounts"
+2025-09-02 18:34:07.886 UTC [1760] postgres@postgres ОПЕРАТОР:  UPDATE accounts SET amount = amount + 10.00 WHERE acc_no = 1;
+2025-09-02 18:34:07.888 UTC [1489] postgres@postgres СООБЩЕНИЕ:  процесс 1489 получил в режиме ShareLock блокировку "транзакция 2076800" через 10903.228 мс
+2025-09-02 18:34:07.888 UTC [1489] postgres@postgres КОНТЕКСТ:  при изменении кортежа (0,2) в отношении "accounts"
+2025-09-02 18:34:07.888 UTC [1489] postgres@postgres ОПЕРАТОР:  UPDATE accounts SET amount = amount + 100.00 WHERE acc_no = 2;
+2025-09-02 18:34:11.401 UTC [961] СООБЩЕНИЕ:  начата контрольная точка: time
+2025-09-02 18:34:11.507 UTC [961] СООБЩЕНИЕ:  контрольная точка завершена: записано буферов: 2 (0.0%); добавлено файлов WAL 0, удалено: 0, переработано: 0; запись=0.103 сек., синхр.=0.001 сек., всего=0.106 сек.; синхронизировано_файлов=2, самая_долгая_синхр.=0.001 сек., средняя=0.001 сек.; расстояние=0 kB, ожидалось=109 kB
+postgres@server:/home/user$
+
+
+PG отслеживает взаимоблоктровку!
+
+
+
+*************4*************
+
+Могут ли две транзакции, выполняющие единственную команду UPDATE одной и той же таблицы (без where), заблокировать друг друга?
+без условия WHERE блокируется вся таблица. и вторая транзакция будет ждать пока первая закончится.
+
+
+
+
+
+
+
 
