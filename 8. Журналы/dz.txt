@@ -1,1 +1,255 @@
+checkpoint_timeout = 30s
 
+postgres=# begin transaction;
+BEGIN
+postgres=*# select pg_current_wal_insert_lsn();
+ pg_current_wal_insert_lsn
+---------------------------
+ 1/2C1D9C38
+(1 row)
+
+-- посмотрим какой у нас wal file
+select pg_walfile_name('1/2C1D9C38');
+
+postgres=*# select pg_walfile_name('1/2C1D9C38');
+     pg_walfile_name
+--------------------------
+ 00000001000000010000002C
+(1 row)
+
+sudo -u postgres pgbench -P 1 -T 10 postgres
+
+
+postgres=*# select pg_current_wal_insert_lsn();
+ pg_current_wal_insert_lsn
+---------------------------
+ 1/43C18EE8
+(1 row)
+
+postgres=*# select pg_walfile_name('1/43C18EE8');
+     pg_walfile_name
+--------------------------
+ 000000010000000100000043
+(1 row)
+
+
+postgres=*# select '1/2C1D9C38'::pg_lsn - '1/43C18EE8'::pg_lsn as bytes;
+   bytes
+------------
+ -396620464
+(1 row)
+
+postgres=*#
+
+
+378,2467498779297 mb
+
+23 контрольных точки
+378/23=16mb
+
+root@server:/home/user# sudo -u postgres pgbench -P 1 -T 10 postgres
+pgbench (15.14 (Ubuntu 15.14-1.pgdg24.04+1))
+starting vacuum...end.
+progress: 1.0 s, 1400.0 tps, lat 0.712 ms stddev 0.297, 0 failed
+progress: 2.0 s, 1415.9 tps, lat 0.706 ms stddev 0.124, 0 failed
+progress: 3.0 s, 1398.0 tps, lat 0.715 ms stddev 0.183, 0 failed
+progress: 4.0 s, 1431.1 tps, lat 0.698 ms stddev 0.108, 0 failed
+progress: 5.0 s, 1426.9 tps, lat 0.701 ms stddev 0.094, 0 failed
+progress: 6.0 s, 1431.0 tps, lat 0.698 ms stddev 0.112, 0 failed
+progress: 7.0 s, 1537.0 tps, lat 0.650 ms stddev 0.183, 0 failed
+progress: 8.0 s, 1355.0 tps, lat 0.738 ms stddev 0.118, 0 failed
+progress: 9.0 s, 1324.1 tps, lat 0.755 ms stddev 0.161, 0 failed
+progress: 10.0 s, 1423.9 tps, lat 0.702 ms stddev 0.149, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 1
+number of threads: 1
+maximum number of tries: 1
+duration: 10 s
+number of transactions actually processed: 14143
+number of failed transactions: 0 (0.000%)
+latency average = 0.707 ms
+latency stddev = 0.165 ms
+initial connection time = 2.232 ms
+tps = 1414.600178 (without initial connection time)
+root@server:/home/user#
+
+
+
+
+postgres=# show synchronous_commit;
+ synchronous_commit
+--------------------
+ on
+(1 row)
+
+postgres=# alter system set synchronous_commit = off;
+ALTER SYSTEM
+postgres=#
+
+
+
+postgres=# select pg_reload_conf();
+ pg_reload_conf
+----------------
+ t
+(1 row)
+
+
+root@server:/home/user# sudo -u postgres pgbench -P 1 -T 10 postgres
+pgbench (15.14 (Ubuntu 15.14-1.pgdg24.04+1))
+starting vacuum...end.
+progress: 1.0 s, 1627.0 tps, lat 0.613 ms stddev 0.121, 0 failed
+progress: 2.0 s, 1636.9 tps, lat 0.611 ms stddev 0.119, 0 failed
+progress: 3.0 s, 1639.0 tps, lat 0.610 ms stddev 0.123, 0 failed
+progress: 4.0 s, 1633.1 tps, lat 0.612 ms stddev 0.110, 0 failed
+progress: 5.0 s, 1637.0 tps, lat 0.611 ms stddev 0.129, 0 failed
+progress: 6.0 s, 1631.0 tps, lat 0.613 ms stddev 0.115, 0 failed
+progress: 7.0 s, 1610.9 tps, lat 0.620 ms stddev 0.144, 0 failed
+progress: 8.0 s, 1640.0 tps, lat 0.610 ms stddev 0.123, 0 failed
+progress: 9.0 s, 1639.0 tps, lat 0.610 ms stddev 0.105, 0 failed
+progress: 10.0 s, 1653.0 tps, lat 0.605 ms stddev 0.077, 0 failed
+transaction type: <builtin: TPC-B (sort of)>
+scaling factor: 1
+query mode: simple
+number of clients: 1
+number of threads: 1
+maximum number of tries: 1
+duration: 10 s
+number of transactions actually processed: 16348
+number of failed transactions: 0 (0.000%)
+latency average = 0.611 ms
+latency stddev = 0.118 ms
+initial connection time = 2.265 ms
+tps = 1635.147305 (without initial connection time)
+root@server:/home/user#
+
+
+
+**разница не особо большая, но есть. но можно потерять часть записей
+
+
+
+***новый кластер, порт 5434 (на будущее-надо в другую папку-эт я помню)
+
+
+
+
+postgres@server:~$ pg_createcluster 15 test1
+Creating new PostgreSQL cluster 15/test1 ...
+/usr/lib/postgresql/15/bin/initdb -D /var/lib/postgresql/15/test1 --auth-local peer --auth-host scram-sha-256 --no-instructions
+Файлы, относящиеся к этой СУБД, будут принадлежать пользователю "postgres".
+От его имени также будет запускаться процесс сервера.
+
+Кластер баз данных будет инициализирован с локалью "ru_RU.UTF-8".
+Кодировка БД по умолчанию, выбранная в соответствии с настройками: "UTF8".
+Выбрана конфигурация текстового поиска по умолчанию "russian".
+
+Контроль целостности страниц данных отключён.
+
+исправление прав для существующего каталога /var/lib/postgresql/15/test1... ок
+создание подкаталогов... ок
+выбирается реализация динамической разделяемой памяти... posix
+выбирается значение max_connections по умолчанию... 100
+выбирается значение shared_buffers по умолчанию... 128MB
+выбирается часовой пояс по умолчанию... Etc/UTC
+создание конфигурационных файлов... ок
+выполняется подготовительный скрипт... ок
+выполняется заключительная инициализация... ок
+сохранение данных на диске... ок
+Warning: systemd does not know about the new cluster yet. Operations like "service postgresql start" will not handle it. To fix, run:
+  sudo systemctl daemon-reload
+Ver Cluster Port Status Owner    Data directory               Log file
+15  test1   5434 down   postgres /var/lib/postgresql/15/test1 /var/log/postgresql/postgresql-15-test1.log
+postgres@server:~$ sudo systemctl daemon-reload
+[sudo] password for postgres:
+Sorry, try again.
+[sudo] password for postgres:
+sudo: no password was provided
+sudo: 1 incorrect password attempt
+postgres@server:~$
+logout
+root@server:/usr/local/pgsql# sudo systemctl daemon-reload
+root@server:/usr/local/pgsql# service postgresql start
+root@server:/usr/local/pgsql# pg_lsclusters
+Ver Cluster Port Status Owner    Data directory               Log file
+15  main    5432 online postgres /var/lib/postgresql/15/main  /var/log/postgresql/postgresql-15-main.log
+15  test1   5434 online postgres /var/lib/postgresql/15/test1 /var/log/postgresql/postgresql-15-test1.log
+
+root@server:/usr/local/pgsql# pg_ctlcluster 15 test1 stop
+
+
+
+postgres@server:/usr/local/pgsql$ /usr/lib/postgresql/15/bin/pg_checksums --enable -D "/var/lib/postgresql/15/test1"
+Обработка контрольных сумм завершена
+Просканировано файлов: 946
+Просканировано блоков: 2813
+Записано файлов: 778
+Записано блоков: 2813
+pg_checksums: синхронизация каталога данных
+pg_checksums: модификация управляющего файла
+Контрольные суммы в кластере включены
+postgres@server:/usr/local/pgsql$
+
+
+root@server:/home/user# pg_lsclusters
+Ver Cluster Port Status Owner    Data directory               Log file
+15  main    5432 online postgres /var/lib/postgresql/15/main  /var/log/postgresql/postgresql-15-main.log
+15  test1   5434 online postgres /var/lib/postgresql/15/test1 /var/log/postgresql/postgresql-15-test1.log
+
+
+
+postgres=# create table test(i int);
+CREATE TABLE
+postgres=# insert into test select s.id from generate_series(1, 100) as s(id);
+INSERT 0 100
+postgres=# select * from test limit 10;
+ i
+----
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+(10 rows)
+
+
+root@server:/home/user#  pg_ctlcluster 15 test1 stop
+root@server:/home/user# pg_lsclusters
+Ver Cluster Port Status Owner    Data directory               Log file
+15  main    5432 online postgres /var/lib/postgresql/15/main  /var/log/postgresql/postgresql-15-main.log
+15  test1   5434 down   postgres /var/lib/postgresql/15/test1 /var/log/postgresql/postgresql-15-test1.log
+
+
+
+редактируем файл
+
+root@server:/var/lib/postgresql/15/test1/base/5# pg_ctlcluster 15 test1 start
+root@server:/var/lib/postgresql/15/test1/base/5# su - postgres
+postgres@server:~$ psql -p 5434
+psql (15.14 (Ubuntu 15.14-1.pgdg24.04+1))
+Введите "help", чтобы получить справку.
+
+postgres=# select * from test limit 10;
+ i
+----
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+(10 строк)
+
+
+***успешно выполнилось
