@@ -1,1 +1,92 @@
+используем тестовую базу полетов
+https://postgrespro.ru/education/demodb
+
+explain (costs, verbose, format json)--, analyze) 
+select * from bookings as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref;
+
+	#	Node	Rows
+Plan
+1.	 Hash Inner Join (cost=9126.73..32902.75 rows=366733 width=125)
+Hash Cond: (tct.book_ref = bkg.book_ref)
+366733
+2.	 Seq Scan on bookings.tickets as tct (cost=0..9811.33 rows=366733 width=104)	366733
+3.	 Hash (cost=4301.88..4301.88 rows=262788 width=21)	262788
+4.	 Seq Scan on bookings.bookings as bkg (cost=0..4301.88 rows=262788 width=21)	262788
+
+
+
+create index on tickets(book_ref);
+analyze tickets;
+
+
+explain (costs, verbose, format json)--, analyze) 
+select * from bookings as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref;
+
+
+	#	Node	Rows
+Plan
+1.	 Merge Inner Join (cost=0.84..26111.54 rows=366733 width=125)	366733
+2.	 Index Scan using bookings_pkey on bookings.bookings as bkg (cost=0.42..6520.24 rows=262788 width=21)	262788
+3.	 Index Scan using tickets_book_ref_idx on bookings.tickets as tct (cost=0.42..14350.16 rows=366733 width=104)	366733
+
+
+***полнотекстный***
+
+explain select ticket_no, passenger_name from tickets where fio_lexeme @@ to_tsquery('olga | Elena' );
+
+"Gather  (cost=1000.00..57192.82 rows=21284 width=30)"
+"  Workers Planned: 2"
+"  ->  Parallel Seq Scan on tickets  (cost=0.00..54064.42 rows=8868 width=30)"
+"        Filter: (fio_lexeme @@ to_tsquery('olga | Elena'::text))"
+
+
+
+CREATE INDEX search_index_title ON tickets USING GIN (fio_lexeme);
+analyze tickets;
+
+explain select ticket_no, passenger_name from tickets where fio_lexeme @@ to_tsquery('olga | Elena' );
+
+
+"Bitmap Heap Scan on tickets  (cost=177.56..17861.64 rows=20944 width=30)"
+"  Recheck Cond: (fio_lexeme @@ to_tsquery('olga | Elena'::text))"
+"  ->  Bitmap Index Scan on search_index_title  (cost=0.00..172.33 rows=20944 width=0)"
+"        Index Cond: (fio_lexeme @@ to_tsquery('olga | Elena'::text))"
+
+
+
+
+***инлекс на часть таблицы (статус отменено)
+
+
+explain select count(1) from flights where status = 'Cancelled';
+
+"Aggregate  (cost=807.05..807.06 rows=1 width=8)"
+"  ->  Seq Scan on flights  (cost=0.00..806.01 rows=414 width=0)"
+"        Filter: ((status)::text = 'Cancelled'::text)"
+
+
+create index status_canc on flights(status) where status = 'Cancelled';
+analyze flights;
+
+"Aggregate  (cost=9.89..9.90 rows=1 width=8)"
+"  ->  Index Only Scan using status_canc on flights  (cost=0.15..8.86 rows=414 width=0)"
+
+
+
+****на несколько полей
+
+explain SELECT  departure_airport, aircraft_code FROM flights where departure_airport = 'REN' and aircraft_code = 'CR2' ;
+"Seq Scan on flights  (cost=0.00..888.82 rows=83 width=8)"
+"  Filter: ((departure_airport = 'REN'::bpchar) AND (aircraft_code = 'CR2'::bpchar))"
+
+create index on flights(departure_airport, aircraft_code);
+analyze flights;
+
+explain SELECT  departure_airport, aircraft_code FROM flights where departure_airport = 'REN' and aircraft_code = 'CR2' ;
+
+
+"Index Only Scan using flights_departure_airport_aircraft_code_idx on flights  (cost=0.29..3.20 rows=83 width=8)"
+"  Index Cond: ((departure_airport = 'REN'::bpchar) AND (aircraft_code = 'CR2'::bpchar))"
+
+
 
