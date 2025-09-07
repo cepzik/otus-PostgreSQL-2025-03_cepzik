@@ -1,1 +1,135 @@
+select min(book_date),max(book_date) from bookings.bookings
 
+min                          |max                          |
+-----------------------------+-----------------------------+
+2017-06-21 14:05:00.000 +0300|2017-08-15 18:00:00.000 +0300|
+
+будем разбивать по месяцам.
+
+
+CREATE TABLE bookings.bookings_new (
+	book_ref bpchar(6) NOT NULL,
+	book_date timestamptz NOT NULL,
+	total_amount numeric(10, 2) NOT NULL,
+	PRIMARY KEY (book_ref, book_date)
+)
+PARTITION BY RANGE (book_date);
+
+CREATE TABLE bookings.bookings_new_6 PARTITION OF bookings.bookings_new FOR VALUES FROM ('2017-06-01') TO ('2017-07-01');
+CREATE TABLE bookings.bookings_new_7 PARTITION OF bookings.bookings_new FOR VALUES FROM ('2017-07-01') TO ('2017-08-01');
+CREATE TABLE bookings.bookings_new_8 PARTITION OF bookings.bookings_new FOR VALUES FROM ('2017-08-01') TO ('2017-09-01');
+
+CREATE TABLE bookings.bookings_other PARTITION OF bookings.bookings_new default;
+
+
+select * from pg_partition_tree('bookings.bookings_new');
+relid         |parentrelid |isleaf|level|
+--------------+------------+------+-----+
+bookings_new  |            |false |    0|
+bookings_new_6|bookings_new|true  |    1|
+bookings_new_7|bookings_new|true  |    1|
+bookings_new_8|bookings_new|true  |    1|
+bookings_other|bookings_new|true  |    1|
+
+
+insert into bookings.bookings_new
+overriding system value
+select * from bookings.bookings;
+
+
+Updated Rows	262788
+Execute time	0.826s
+Start time	Sun Sep 07 20:12:51 MSK 2025
+Finish time	Sun Sep 07 20:12:52 MSK 2025
+Query	insert into bookings.bookings_new
+	overriding system value
+	select * from bookings.bookings
+
+
+select min(book_date),max(book_date) from bookings.bookings_new_6;
+
+min                          |max                          |
+-----------------------------+-----------------------------+
+2017-06-21 14:05:00.000 +0300|2017-06-30 23:59:00.000 +0300|
+
+
+
+select min(book_date),max(book_date) from bookings.bookings_new_7;
+
+min                          |max                          |
+-----------------------------+-----------------------------+
+2017-07-01 00:00:00.000 +0300|2017-07-31 23:59:00.000 +0300|
+
+
+select min(book_date),max(book_date) from bookings.bookings_new_8;
+
+min                          |max                          |
+-----------------------------+-----------------------------+
+2017-08-01 00:00:00.000 +0300|2017-08-15 18:00:00.000 +0300|
+
+
+
+
+
+explain
+select * from bookings as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref;
+
+
+QUERY PLAN                                                                     |
+-------------------------------------------------------------------------------+
+Hash Join  (cost=9126.73..44291.75 rows=366733 width=161)                      |
+  Hash Cond: (tct.book_ref = bkg.book_ref)                                     |
+  ->  Seq Scan on tickets tct  (cost=0.00..17620.33 rows=366733 width=140)     |
+  ->  Hash  (cost=4301.88..4301.88 rows=262788 width=21)                       |
+        ->  Seq Scan on bookings bkg  (cost=0.00..4301.88 rows=262788 width=21)|
+
+
+
+
+explain 
+select * from bookings.bookings_new as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref;
+
+QUERY PLAN                                                                             |
+---------------------------------------------------------------------------------------+
+Hash Join  (cost=29725.49..51387.27 rows=408662 width=161)                             |
+  Hash Cond: (bkg.book_ref = tct.book_ref)                                             |
+  ->  Append  (cost=0.00..5643.12 rows=263808 width=21)                                |
+        ->  Seq Scan on bookings_new_6 bkg_1  (cost=0.00..120.03 rows=7303 width=21)   |
+        ->  Seq Scan on bookings_new_7 bkg_2  (cost=0.00..2735.62 rows=167062 width=21)|
+        ->  Seq Scan on bookings_new_8 bkg_3  (cost=0.00..1448.23 rows=88423 width=21) |
+        ->  Seq Scan on bookings_other bkg_4  (cost=0.00..20.20 rows=1020 width=52)    |
+  ->  Hash  (cost=17620.33..17620.33 rows=366733 width=140)                            |
+        ->  Seq Scan on tickets tct  (cost=0.00..17620.33 rows=366733 width=140)       |
+
+
+т.е. при выборке ввсего массива данных дапросы будут выполняться медленнее
+
+
+
+explain 
+select * from bookings.bookings_new as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref where book_date = '2017-08-04 03:39:00.000 +0300' ;
+
+QUERY PLAN                                                                                     |
+-----------------------------------------------------------------------------------------------+
+Nested Loop  (cost=0.42..1719.20 rows=6 width=161)                                             |
+  ->  Seq Scan on bookings_new_8 bkg  (cost=0.00..1669.29 rows=4 width=21)                     |
+        Filter: (book_date = '2017-08-04 03:39:00+03'::timestamp with time zone)               |
+  ->  Index Scan using tickets_book_ref_idx on tickets tct  (cost=0.42..12.46 rows=2 width=140)|
+        Index Cond: (book_ref = bkg.book_ref)                                                  |
+
+
+
+explain
+select * from bookings as bkg inner join tickets as tct on bkg.book_ref = tct.book_ref where book_date = '2017-08-04 03:39:00.000 +0300' ;
+
+QUERY PLAN                                                                                           |
+-----------------------------------------------------------------------------------------------------+
+Gather  (cost=1000.42..4631.82 rows=6 width=161)                                                     |
+  Workers Planned: 1                                                                                 |
+  ->  Nested Loop  (cost=0.42..3631.22 rows=4 width=161)                                             |
+        ->  Parallel Seq Scan on bookings bkg  (cost=0.00..3606.26 rows=2 width=21)                  |
+              Filter: (book_date = '2017-08-04 03:39:00+03'::timestamp with time zone)               |
+        ->  Index Scan using tickets_book_ref_idx on tickets tct  (cost=0.42..12.46 rows=2 width=140)|
+              Index Cond: (book_ref = bkg.book_ref)                                                  |
+
+а вот запрос к кокретной дате (конкретный юолее короткая секция) происходит намного бустрее
