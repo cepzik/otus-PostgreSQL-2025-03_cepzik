@@ -1,1 +1,99 @@
+vm1, vm2, vm3
 
+vm1 pgadmin:
+CREATE DATABASE test;
+
+CREATE TABLE test (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+
+CREATE TABLE test2 (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+vm2 pgadmin:
+CREATE DATABASE test;
+
+CREATE TABLE test (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+
+CREATE TABLE test2 (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+vm3 pgadmin:
+CREATE DATABASE test;
+
+CREATE TABLE test (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+
+CREATE TABLE test2 (
+    id integer NOT NULL,
+    string_val        text,
+    PRIMARY KEY (id));
+
+
+везде созали юзера repluser/password
+дали правва на таблицы
+на vm1 создали публикацию test
+на vm2 создали публикацию test2
+на vm1 создали подписку на  vm2.test2
+на vm2 создали подписку на  vm1.test
+
+на vm3 создали подписку на  vm2.test2 и на  vm1.test
+
+
+vm1.test:
+INSERT INTO public.test(
+	id, string_val)
+	VALUES (1, 'ab');
+
+INSERT 0 1
+
+Query returned successfully in 44 msec.
+
+vm2.test:
+SELECT id, string_val
+	FROM public.test;
+
+"id"	"string_val"
+1	"ab"
+
+
+
+vm2.test2:
+
+INSERT INTO public.test2(
+	id, string_val)
+	VALUES (2, 'bc');
+
+vm1.test2:
+SELECT id, string_val
+	FROM public.test2;
+
+"id"	"string_val"
+2	"bc"
+
+vm3.test:
+SELECT id, string_val
+	FROM public.test;
+
+"id"	"string_val"
+1	"ab"
+
+
+SELECT id, string_val
+	FROM public.test2;
+
+"id"	"string_val"
+2	"bc"
