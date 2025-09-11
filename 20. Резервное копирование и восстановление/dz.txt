@@ -1,1 +1,110 @@
+sudo -u postgres psql
 
+postgres=# create database test;
+CREATE DATABASE
+postgres=# \c test
+Вы подключены к базе данных "test" как пользователь "postgres".
+
+create table test_table as 
+select 
+  generate_series(1,100) as id,
+  md5(random()::text)::char(10) as txt;
+
+
+Под линукс пользователем Postgres создадим каталог для бэкапов
+postgres@server:/home/user$ mkdir /mnt/1
+mkdir: cannot create directory ‘/mnt/1’: Permission denied
+
+root@server:/home/user# mkdir /mnt/1
+root@server:/home/user# chown -R postgres /mnt/1
+root@server:/home/user# chmod 755 /mnt/1
+
+\copy test_table to '/mnt/1/logic.sql';
+
+postgres=# \c test
+Вы подключены к базе данных "test" как пользователь "postgres".
+test=# \copy test_table to '/mnt/1/logic.sql';
+COPY 100
+
+
+test=# create table test_table2 (id int, txt text);
+CREATE TABLE
+
+
+\copy test_table2 from '/mnt/1/logic.sql';
+
+test=# \copy test_table2 from '/mnt/1/logic.sql';
+COPY 100
+
+
+отдельно две таблицы
+pg_dump -d test --create --table test_table --table test_table2 -Fc > /mnt/1/archive_1.gz
+
+перед восстановлением предварительно удалим часть запсией
+test=# select count(*) from test_TABLE2;
+ count
+-------
+   100
+(1 строка)
+
+test=# delete from test_table2 ;
+DELETE 100
+
+test=# select count(*) from test_TABLE2;
+ count
+-------
+     0
+(1 строка)
+
+
+восстановвить только вторую базу
+pg_restore -d test /mnt/1/archive_1.gz -t test_table2
+
+pg_restore: ошибка: could not execute query: ОШИБКА:  отношение "test_table2" уже существует
+Выполнялась команда: CREATE TABLE public.test_table2 (
+    id integer,
+    txt text
+);
+
+
+pg_restore: предупреждение: при восстановлении проигнорировано ошибок: 1
+
+
+
+
+postgres@server:/home/user$ psql
+psql (17.6 (Ubuntu 17.6-1.pgdg24.04+1))
+Введите "help", чтобы получить справку.
+
+postgres=# \c test
+Вы подключены к базе данных "test" как пользователь "postgres".
+test=# select count(*) from test_TABLE2;
+ count
+-------
+   100
+(1 строка)
+
+
+
+!при попытке восставноить еще раз-данные просто добавляются.
+
+postgres@server:/home/user$ pg_restore -d test /mnt/1/archive_1.gz -t test_table2
+pg_restore: ошибка: could not execute query: ОШИБКА:  отношение "test_table2" уже существует
+Выполнялась команда: CREATE TABLE public.test_table2 (
+    id integer,
+    txt text
+);
+
+
+pg_restore: предупреждение: при восстановлении проигнорировано ошибок: 1
+postgres@server:/home/user$ psql
+psql (17.6 (Ubuntu 17.6-1.pgdg24.04+1))
+Введите "help", чтобы получить справку.
+
+postgres=# \c test
+Вы подключены к базе данных "test" как пользователь "postgres".
+test=# select count(*) from test_TABLE2;
+ count
+-------
+   200
+(1 строка)
